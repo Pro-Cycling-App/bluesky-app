@@ -14,6 +14,22 @@ Major update from upstream Bluesky Social App repository with 590 commits. This 
 - **Node.js Requirement**: Bumped from 18.18.2 to 20.19.4
 - **Impact**: All Expo modules need to be updated to compatible versions
 
+#### iOS 26 SDK Compatibility Fixes
+- **Commit**: `6983efee7` (PR #9059, September 22, 2025)
+- **Author**: Samuel Newman
+- **Problem**: iOS 26/Xcode 26 introduced breaking changes requiring app compatibility updates
+- **Fixes Applied**:
+  1. **UIDesignRequiresCompatibility Flag** (`app.config.js`):
+     - Added `UIDesignRequiresCompatibility: true` to iOS configuration
+     - Enables iOS 26's design compatibility mode
+     - Required for apps to properly support iOS 26's new UI design requirements
+  2. **AssetsLibrary Deprecation Fix** (`patches/react-native-compressor+1.11.0.patch`):
+     - Removed deprecated `import AssetsLibrary` from react-native-compressor
+     - AssetsLibrary framework is no longer available in iOS 26/Xcode 26
+     - Without this patch: build failures with "failed to build module 'AssetsLibrary'"
+     - Related issue: https://github.com/numandev1/react-native-compressor/issues/367
+- **Impact**: Forks must apply these changes to build with Xcode 26 for iOS 26 compatibility
+
 #### Environment Configuration
 - **Complete Restructuring**: The `.env.example` file has been completely rewritten
 - **New Required Variables**:
@@ -99,13 +115,21 @@ Major update from upstream Bluesky Social App repository with 590 commits. This 
 
 ### Migration Guide for Forks
 
-1. **Update Node.js** to version 20.19.4 or higher
-2. **Review Environment Variables**: Update `.env` files according to new structure
-3. **Test Expo SDK Upgrade**: Run comprehensive tests after updating
-4. **Update Custom Components**: Migrate any custom buttons, dialogs, or toast notifications
-5. **Replace Deprecated APIs**: Update any usage of removed post-thread queries
-6. **Test Native Features**: Verify all native modules work correctly
-7. **Review Build Scripts**: Update any custom build processes for new requirements
+After pulling in these upstream changes, you'll need to:
+
+1. **Update Node.js** to version 20.19.4 or higher (required by Expo SDK 54)
+2. **Update Environment Variables**: Review and update your `.env` files to match the new structure
+3. **Resolve Merge Conflicts**: 
+   - Pay special attention to any custom modifications in components that were redesigned (Button, Dialog, Toast)
+   - Check for conflicts in `app.config.js` if you have custom iOS configurations
+   - Review any custom patches that might conflict with new patches
+4. **Update Fork-Specific Code**:
+   - Migrate any code using removed APIs (post-thread queries, SubtleWebHover)
+   - Update any custom components extending Button, Dialog, or Toast systems
+   - Ensure any fork-specific features are compatible with the new ALF design system
+5. **Reinstall Dependencies**: Run `yarn install` to update all packages
+6. **Run Tests**: Verify all functionality works with the new Expo SDK and dependencies
+7. **Build and Test on iOS 26**: The iOS 26 compatibility fixes are already included, but verify your fork builds correctly with Xcode 26
 
 ### Version Bump
 - Previous: 1.104.0
