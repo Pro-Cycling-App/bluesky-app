@@ -12,17 +12,15 @@ import {
   toNiceDomain,
 } from '#/lib/strings/url-helpers'
 import {logger} from '#/logger'
-import {isNative} from '#/platform/detection'
 import {useInAppBrowser} from '#/state/preferences/in-app-browser'
 import {useTheme} from '#/alf'
 import {useDialogContext} from '#/components/Dialog'
-import {useSheetWrapper} from '#/components/Dialog/sheet-wrapper'
 import {useGlobalDialogsControlContext} from '#/components/dialogs/Context'
+import {IS_NATIVE} from '#/env'
 
 export function useOpenLink() {
   const enabled = useInAppBrowser()
   const t = useTheme()
-  const sheetWrapper = useSheetWrapper()
   const dialogContext = useDialogContext()
   const {inAppBrowserConsentControl} = useGlobalDialogsControlContext()
 
@@ -43,7 +41,7 @@ export function useOpenLink() {
         }
       }
 
-      if (isNative && !url.startsWith('mailto:')) {
+      if (IS_NATIVE && !url.startsWith('mailto:')) {
         if (override === undefined && enabled === undefined) {
           // consent dialog is a global dialog, and while it's possible to nest dialogs,
           // the actual components need to be nested. sibling dialogs on iOS are not supported.
@@ -58,25 +56,23 @@ export function useOpenLink() {
           }
           return
         } else if (override ?? enabled) {
-          await sheetWrapper(
-            WebBrowser.openBrowserAsync(url, {
-              presentationStyle:
-                WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-              toolbarColor: t.atoms.bg.backgroundColor,
-              controlsColor: t.palette.primary_500,
-              createTask: false,
-            }).catch(err => {
-              if (__DEV__)
-                logger.error('Could not open web browser', {message: err})
-              Linking.openURL(url)
-            }),
-          )
+          WebBrowser.openBrowserAsync(url, {
+            presentationStyle:
+              WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+            toolbarColor: t.atoms.bg.backgroundColor,
+            controlsColor: t.palette.primary_500,
+            createTask: false,
+          }).catch(err => {
+            if (__DEV__)
+              logger.error('Could not open web browser', {message: err})
+            Linking.openURL(url)
+          })
           return
         }
       }
       Linking.openURL(url)
     },
-    [enabled, inAppBrowserConsentControl, t, sheetWrapper, dialogContext],
+    [enabled, inAppBrowserConsentControl, t, dialogContext],
   )
 
   return openLink

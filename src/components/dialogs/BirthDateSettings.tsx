@@ -3,10 +3,10 @@ import {View} from 'react-native'
 import {msg, Trans} from '@lingui/macro'
 import {useLingui} from '@lingui/react'
 
-import {cleanError} from '#/lib/strings/errors'
+import {useCleanError} from '#/lib/hooks/useCleanError'
+import {isAppPassword} from '#/lib/jwt'
 import {getAge, getDateAgo} from '#/lib/strings/time'
 import {logger} from '#/logger'
-import {isIOS, isWeb} from '#/platform/detection'
 import {
   useBirthdateMutation,
   useIsBirthdateUpdateAllowed,
@@ -15,6 +15,7 @@ import {
   usePreferencesQuery,
   type UsePreferencesQueryResponse,
 } from '#/state/queries/preferences'
+import {useSession} from '#/state/session'
 import {ErrorMessage} from '#/view/com/util/error/ErrorMessage'
 import {atoms as a, useTheme, web} from '#/alf'
 import {Admonition} from '#/components/Admonition'
@@ -23,7 +24,8 @@ import * as Dialog from '#/components/Dialog'
 import {DateField} from '#/components/forms/DateField'
 import {SimpleInlineLinkText} from '#/components/Link'
 import {Loader} from '#/components/Loader'
-import {Text} from '#/components/Typography'
+import {Span, Text} from '#/components/Typography'
+import {IS_IOS, IS_WEB} from '#/env'
 
 export function BirthDateSettingsDialog({
   control,
@@ -34,6 +36,8 @@ export function BirthDateSettingsDialog({
   const {_} = useLingui()
   const {isLoading, error, data: preferences} = usePreferencesQuery()
   const isBirthdateUpdateAllowed = useIsBirthdateUpdateAllowed()
+  const {currentAccount} = useSession()
+  const isUsingAppPassword = isAppPassword(currentAccount?.accessJwt || '')
 
   return (
     <Dialog.Outer control={control} nativeOptions={{preventExpansion: true}}>
@@ -65,6 +69,15 @@ export function BirthDateSettingsDialog({
                 }
                 style={[a.rounded_sm]}
               />
+            ) : isUsingAppPassword ? (
+              <Admonition type="info">
+                <Trans>
+                  Hmm, it looks like you're logged in with an{' '}
+                  <Span style={[a.italic]}>App Password</Span>. To set your
+                  birthdate, you'll need to log in with your main account
+                  password, or ask whomever controls this account to do so.
+                </Trans>
+              </Admonition>
             ) : (
               <BirthdayInner control={control} preferences={preferences} />
             )}
@@ -110,16 +123,18 @@ function BirthdayInner({
   preferences: UsePreferencesQueryResponse
 }) {
   const {_} = useLingui()
+  const cleanError = useCleanError()
   const [date, setDate] = React.useState(
     preferences.birthDate || getDateAgo(18),
   )
-  const {
-    isPending,
-    isError,
-    error,
-    mutateAsync: setBirthDate,
-  } = useBirthdateMutation()
+  const {isPending, error, mutateAsync: setBirthDate} = useBirthdateMutation()
   const hasChanged = date !== preferences.birthDate
+  const errorMessage = React.useMemo(() => {
+    if (error) {
+      const {raw, clean} = cleanError(error)
+      return clean || raw || error.toString()
+    }
+  }, [error, cleanError])
 
   const age = getAge(new Date(date))
   const isUnder13 = age < 13
@@ -139,7 +154,7 @@ function BirthdayInner({
 
   return (
     <View style={a.gap_lg} testID="birthDateSettingsDialog">
-      <View style={isIOS && [a.w_full, a.align_center]}>
+      <View style={IS_IOS && [a.w_full, a.align_center]}>
         <DateField
           testID="birthdayInput"
           value={date}
@@ -172,11 +187,11 @@ function BirthdayInner({
         </Admonition>
       )}
 
-      {isError ? (
-        <ErrorMessage message={cleanError(error)} style={[a.rounded_sm]} />
+      {errorMessage ? (
+        <ErrorMessage message={errorMessage} style={[a.rounded_sm]} />
       ) : undefined}
 
-      <View style={isWeb && [a.flex_row, a.justify_end]}>
+      <View style={IS_WEB && [a.flex_row, a.justify_end]}>
         <Button
           label={hasChanged ? _(msg`Save birthdate`) : _(msg`Done`)}
           size="large"

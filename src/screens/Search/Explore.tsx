@@ -68,6 +68,7 @@ import {Loader} from '#/components/Loader'
 import * as ProfileCard from '#/components/ProfileCard'
 import {SubtleHover} from '#/components/SubtleHover'
 import {Text} from '#/components/Typography'
+import {ExploreScreenLiveEventFeedsBanner} from '#/features/liveEvents/components/ExploreScreenLiveEventFeedsBanner'
 import * as ModuleHeader from './components/ModuleHeader'
 import {
   SuggestedAccountsTabBar,
@@ -200,6 +201,10 @@ type ExploreScreenItems =
   | {
       type: 'interests-card'
       key: 'interests-card'
+    }
+  | {
+      type: 'liveEventFeedsBanner'
+      key: string
     }
 
 export function Explore({
@@ -684,6 +689,8 @@ export function Explore({
     i.push(topBorder)
     i.push(...interestsNuxModule)
 
+    i.push({type: 'liveEventFeedsBanner', key: 'liveEventFeedsBanner'})
+
     if (useFullExperience) {
       i.push(trendingTopicsModule)
       i.push(...suggestedFeedsModule)
@@ -998,6 +1005,9 @@ export function Explore({
         case 'interests-card': {
           return <ExploreInterestsCard />
         }
+        case 'liveEventFeedsBanner': {
+          return <ExploreScreenLiveEventFeedsBanner />
+        }
       }
     },
     [
@@ -1030,26 +1040,48 @@ export function Explore({
 
   // track headers and report module viewability
   const alreadyReportedRef = useRef<Map<string, string>>(new Map())
-  const onItemSeen = useCallback((item: ExploreScreenItems) => {
-    let module: MetricEvents['explore:module:seen']['module']
-    if (item.type === 'trendingTopics' || item.type === 'trendingVideos') {
-      module = item.type
-    } else if (item.type === 'profile') {
-      module = 'suggestedAccounts'
-    } else if (item.type === 'feed') {
-      module = 'suggestedFeeds'
-    } else if (item.type === 'starterPack') {
-      module = 'suggestedStarterPacks'
-    } else if (item.type === 'preview:sliceItem') {
-      module = `feed:feedgen|${item.feed.uri}`
-    } else {
-      return
-    }
-    if (!alreadyReportedRef.current.has(module)) {
-      alreadyReportedRef.current.set(module, module)
-      logger.metric('explore:module:seen', {module}, {statsig: false})
-    }
-  }, [])
+  const seenProfilesRef = useRef<Set<string>>(new Set())
+  const onItemSeen = useCallback(
+    (item: ExploreScreenItems) => {
+      let module: MetricEvents['explore:module:seen']['module']
+      if (item.type === 'trendingTopics' || item.type === 'trendingVideos') {
+        module = item.type
+      } else if (item.type === 'profile') {
+        module = 'suggestedAccounts'
+        // Track individual profile seen events
+        if (!seenProfilesRef.current.has(item.profile.did)) {
+          seenProfilesRef.current.add(item.profile.did)
+          const position = suggestedFollowsModule.findIndex(
+            i => i.type === 'profile' && i.profile.did === item.profile.did,
+          )
+          logger.metric(
+            'suggestedUser:seen',
+            {
+              logContext: 'Explore',
+              recId: item.recId,
+              position: position !== -1 ? position - 1 : 0, // -1 to account for header
+              suggestedDid: item.profile.did,
+              category: null,
+            },
+            {statsig: true},
+          )
+        }
+      } else if (item.type === 'feed') {
+        module = 'suggestedFeeds'
+      } else if (item.type === 'starterPack') {
+        module = 'suggestedStarterPacks'
+      } else if (item.type === 'preview:sliceItem') {
+        module = `feed:feedgen|${item.feed.uri}`
+      } else {
+        return
+      }
+      if (!alreadyReportedRef.current.has(module)) {
+        alreadyReportedRef.current.set(module, module)
+        logger.metric('explore:module:seen', {module}, {statsig: false})
+      }
+    },
+    [suggestedFollowsModule],
+  )
 
   return (
     <List

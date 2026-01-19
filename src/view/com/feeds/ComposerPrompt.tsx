@@ -1,6 +1,6 @@
-import React, {useCallback, useState} from 'react'
+import {useCallback, useState} from 'react'
 import {Keyboard, Pressable, View} from 'react-native'
-import {msg} from '@lingui/macro'
+import {msg, Trans} from '@lingui/macro'
 import {useLingui} from '@lingui/react'
 
 import {useOpenComposer} from '#/lib/hooks/useOpenComposer'
@@ -11,7 +11,6 @@ import {
 } from '#/lib/hooks/usePermissions'
 import {openCamera, openUnifiedPicker} from '#/lib/media/picker'
 import {logger} from '#/logger'
-import {isNative} from '#/platform/detection'
 import {useCurrentAccountProfile} from '#/state/queries/useCurrentAccountProfile'
 import {MAX_IMAGES} from '#/view/com/composer/state/composer'
 import {UserAvatar} from '#/view/com/util/UserAvatar'
@@ -22,6 +21,7 @@ import {Camera_Stroke2_Corner0_Rounded as CameraIcon} from '#/components/icons/C
 import {Image_Stroke2_Corner0_Rounded as ImageIcon} from '#/components/icons/Image'
 import {SubtleHover} from '#/components/SubtleHover'
 import {Text} from '#/components/Typography'
+import {IS_NATIVE} from '#/env'
 
 export function ComposerPrompt() {
   const {_} = useLingui()
@@ -34,7 +34,7 @@ export function ComposerPrompt() {
   const {requestVideoAccessIfNeeded} = useVideoLibraryPermission()
   const sheetWrapper = useSheetWrapper()
 
-  const onPress = React.useCallback(() => {
+  const onPress = useCallback(() => {
     logger.metric('composerPrompt:press', {})
     openComposer({})
   }, [openComposer])
@@ -43,7 +43,7 @@ export function ComposerPrompt() {
     logger.metric('composerPrompt:gallery:press', {})
 
     // On web, open the composer with the gallery picker auto-opening
-    if (!isNative) {
+    if (!IS_NATIVE) {
       openComposer({openGallery: true})
       return
     }
@@ -105,7 +105,7 @@ export function ComposerPrompt() {
         return
       }
 
-      if (isNative && Keyboard.isVisible()) {
+      if (IS_NATIVE && Keyboard.isVisible()) {
         Keyboard.dismiss()
       }
 
@@ -122,7 +122,7 @@ export function ComposerPrompt() {
       ]
 
       openComposer({
-        imageUris: isNative ? imageUris : undefined,
+        imageUris: IS_NATIVE ? imageUris : undefined,
       })
     } catch (err: any) {
       if (!String(err).toLowerCase().includes('cancel')) {
@@ -148,8 +148,6 @@ export function ComposerPrompt() {
         a.relative,
         a.flex_row,
         a.align_start,
-        a.border_t,
-        t.atoms.border_contrast_low,
         {
           paddingLeft: 18,
           paddingRight: 15,
@@ -168,78 +166,73 @@ export function ComposerPrompt() {
       <SubtleHover hover={hover} />
       <UserAvatar
         avatar={profile.avatar}
-        size={40}
+        size={42}
         type={profile.associated?.labeler ? 'labeler' : 'user'}
       />
-      <View style={[a.flex_1, a.ml_md, a.flex_row, a.align_center, a.gap_xs]}>
-        <View
+      <View
+        style={[
+          a.flex_1,
+          a.ml_md,
+          a.flex_row,
+          a.align_center,
+          a.justify_between,
+          {
+            height: 40,
+          },
+        ]}>
+        <Text
           style={[
-            a.flex_1,
-            a.flex_row,
-            a.align_center,
-            a.justify_between,
-            a.px_md,
-            a.rounded_full,
-            t.atoms.bg_contrast_50,
-            {
-              height: 40,
-            },
+            t.atoms.text_contrast_medium,
+            a.text_md,
+            {includeFontPadding: false},
           ]}>
-          <Text
-            style={[
-              t.atoms.text_contrast_low,
-              a.text_md,
-              a.pl_xs,
-              {
-                includeFontPadding: false,
-              },
-            ]}>
-            {_(msg`What's up?`)}
-          </Text>
-          <View style={[a.flex_row, a.gap_md, a.mr_xs]}>
-            {isNative && (
-              <Button
-                onPress={e => {
-                  e.stopPropagation()
-                  onPressCamera()
-                }}
-                label={_(msg`Open camera`)}
-                accessibilityHint={_(msg`Opens device camera`)}
-                variant="ghost"
-                shape="round">
-                {({hovered}) => (
-                  <CameraIcon
-                    size="md"
-                    style={{
-                      color: hovered
-                        ? t.palette.primary_500
-                        : t.palette.contrast_300,
-                    }}
-                  />
-                )}
-              </Button>
-            )}
+          <Trans>What's up?</Trans>
+        </Text>
+        <View style={[a.flex_row, a.gap_md]}>
+          {IS_NATIVE && (
             <Button
               onPress={e => {
                 e.stopPropagation()
-                onPressImage()
+                onPressCamera()
               }}
-              label={_(msg`Add image`)}
-              accessibilityHint={_(msg`Opens image picker`)}
+              label={_(msg`Open camera`)}
+              accessibilityHint={_(msg`Opens device camera`)}
               variant="ghost"
               shape="round">
-              {({hovered}) => (
-                <ImageIcon
-                  size="md"
+              {({hovered, pressed, focused}) => (
+                <CameraIcon
+                  size="lg"
                   style={{
-                    color: hovered
-                      ? t.palette.primary_500
-                      : t.palette.contrast_300,
+                    color:
+                      hovered || pressed || focused
+                        ? t.palette.primary_500
+                        : t.palette.contrast_300,
                   }}
                 />
               )}
             </Button>
-          </View>
+          )}
+          <Button
+            onPress={e => {
+              e.stopPropagation()
+              onPressImage()
+            }}
+            label={_(msg`Add image`)}
+            accessibilityHint={_(msg`Opens image picker`)}
+            variant="ghost"
+            shape="round">
+            {({hovered, pressed, focused}) => (
+              <ImageIcon
+                size="lg"
+                style={{
+                  color:
+                    hovered || pressed || focused
+                      ? t.palette.primary_500
+                      : t.palette.contrast_300,
+                }}
+              />
+            )}
+          </Button>
         </View>
       </View>
     </Pressable>

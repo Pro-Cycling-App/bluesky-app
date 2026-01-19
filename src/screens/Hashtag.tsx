@@ -8,6 +8,7 @@ import {type NativeStackScreenProps} from '@react-navigation/native-stack'
 
 import {HITSLOP_10} from '#/lib/constants'
 import {useInitialNumToRender} from '#/lib/hooks/useInitialNumToRender'
+import {usePostViewTracking} from '#/lib/hooks/usePostViewTracking'
 import {type CommonNavigatorParams} from '#/lib/routes/types'
 import {shareUrl} from '#/lib/sharing'
 import {cleanError} from '#/lib/strings/errors'
@@ -45,13 +46,22 @@ export default function HashtagScreen({
   const {tag, author} = route.params
   const {_} = useLingui()
 
-  const fullTag = React.useMemo(() => {
-    return `#${decodeURIComponent(tag)}`
+  const decodedTag = React.useMemo(() => {
+    return decodeURIComponent(tag)
   }, [tag])
 
+  const isCashtag = decodedTag.startsWith('$')
+
+  const fullTag = React.useMemo(() => {
+    // Cashtags already include the $ prefix, hashtags need # added
+    return isCashtag ? decodedTag : `#${decodedTag}`
+  }, [decodedTag, isCashtag])
+
   const headerTitle = React.useMemo(() => {
-    return enforceLen(fullTag.toLowerCase(), 24, true, 'middle')
-  }, [fullTag])
+    // Keep cashtags uppercase, lowercase hashtags
+    const displayTag = isCashtag ? fullTag.toUpperCase() : fullTag.toLowerCase()
+    return enforceLen(displayTag, 24, true, 'middle')
+  }, [fullTag, isCashtag])
 
   const sanitizedAuthor = React.useMemo(() => {
     if (!author) return
@@ -169,11 +179,16 @@ function HashtagScreenTab({
   const [isPTR, setIsPTR] = React.useState(false)
   const t = useTheme()
   const {hasSession} = useSession()
+  const trackPostView = usePostViewTracking('Hashtag')
+
+  const isCashtag = fullTag.startsWith('$')
 
   const queryParam = React.useMemo(() => {
-    if (!author) return fullTag
-    return `${fullTag} from:${author}`
-  }, [fullTag, author])
+    // Cashtags need # prefix for search: "#$BTC" or "#$BTC from:author"
+    const searchTag = isCashtag ? `#${fullTag}` : fullTag
+    if (!author) return searchTag
+    return `${searchTag} from:${author}`
+  }, [fullTag, author, isCashtag])
 
   const {
     data,
@@ -253,7 +268,7 @@ function HashtagScreenTab({
           isError={isError}
           onRetry={refetch}
           emptyType="results"
-          emptyMessage={_(msg`We couldn't find any results for that hashtag.`)}
+          emptyMessage={_(msg`We couldn't find any results for that tag.`)}
         />
       ) : (
         <List
@@ -264,6 +279,7 @@ function HashtagScreenTab({
           onRefresh={onRefresh}
           onEndReached={onEndReached}
           onEndReachedThreshold={4}
+          onItemSeen={trackPostView}
           // @ts-ignore web only -prf
           desktopFixedHeight
           ListFooterComponent={

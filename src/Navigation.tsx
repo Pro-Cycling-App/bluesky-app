@@ -18,7 +18,9 @@ import {
 } from '@react-navigation/native'
 
 import {timeout} from '#/lib/async/timeout'
+import {useAccountSwitcher} from '#/lib/hooks/useAccountSwitcher'
 import {useColorSchemeStyle} from '#/lib/hooks/useColorSchemeStyle'
+import {useNonReactiveCallback} from '#/lib/hooks/useNonReactiveCallback'
 import {
   getNotificationPayload,
   type NotificationPayload,
@@ -42,13 +44,14 @@ import {type RouteParams, type State} from '#/lib/routes/types'
 import {attachRouteToLogEvents, logEvent} from '#/lib/statsig/statsig'
 import {bskyTitle} from '#/lib/strings/headings'
 import {logger} from '#/logger'
-import {isNative, isWeb} from '#/platform/detection'
 import {useUnreadNotifications} from '#/state/queries/notifications/unread'
 import {useSession} from '#/state/session'
+import {useLoggedOutViewControls} from '#/state/shell/logged-out'
 import {
   shouldRequestEmailConfirmation,
   snoozeEmailConfirmationPrompt,
 } from '#/state/shell/reminders'
+import {useCloseAllActiveElements} from '#/state/util'
 import {CommunityGuidelinesScreen} from '#/view/screens/CommunityGuidelines'
 import {CopyrightPolicyScreen} from '#/view/screens/CopyrightPolicy'
 import {DebugModScreen} from '#/view/screens/DebugMod'
@@ -64,13 +67,14 @@ import {PostThreadScreen} from '#/view/screens/PostThread'
 import {PrivacyPolicyScreen} from '#/view/screens/PrivacyPolicy'
 import {ProfileScreen} from '#/view/screens/Profile'
 import {ProfileFeedLikedByScreen} from '#/view/screens/ProfileFeedLikedBy'
-import {Storybook} from '#/view/screens/Storybook'
+import {StorybookScreen} from '#/view/screens/Storybook'
 import {SupportScreen} from '#/view/screens/Support'
 import {TermsOfServiceScreen} from '#/view/screens/TermsOfService'
 import {BottomBar} from '#/view/shell/bottom-bar/BottomBar'
 import {createNativeStackNavigatorWithAuth} from '#/view/shell/createNativeStackNavigatorWithAuth'
 import {BookmarksScreen} from '#/screens/Bookmarks'
 import {SharedPreferencesTesterScreen} from '#/screens/E2E/SharedPreferencesTesterScreen'
+import {FindContactsFlowScreen} from '#/screens/FindContactsFlowScreen'
 import HashtagScreen from '#/screens/Hashtag'
 import {LogScreen} from '#/screens/Log'
 import {MessagesScreen} from '#/screens/Messages/ChatList'
@@ -102,6 +106,7 @@ import {AppIconSettingsScreen} from '#/screens/Settings/AppIconSettings'
 import {AppPasswordsScreen} from '#/screens/Settings/AppPasswords'
 import {ContentAndMediaSettingsScreen} from '#/screens/Settings/ContentAndMediaSettings'
 import {ExternalMediaPreferencesScreen} from '#/screens/Settings/ExternalMediaPreferences'
+import {FindContactsSettingsScreen} from '#/screens/Settings/FindContactsSettings'
 import {FollowingFeedPreferencesScreen} from '#/screens/Settings/FollowingFeedPreferences'
 import {InterestsSettingsScreen} from '#/screens/Settings/InterestsSettings'
 import {LanguageSettingsScreen} from '#/screens/Settings/LanguageSettings'
@@ -132,12 +137,9 @@ import {
   EmailDialogScreenID,
   useEmailDialogControl,
 } from '#/components/dialogs/EmailDialog'
+import {IS_NATIVE, IS_WEB} from '#/env'
 import {router} from '#/routes'
 import {Referrer} from '../modules/expo-bluesky-swiss-army'
-import {useAccountSwitcher} from './lib/hooks/useAccountSwitcher'
-import {useNonReactiveCallback} from './lib/hooks/useNonReactiveCallback'
-import {useLoggedOutViewControls} from './state/shell/logged-out'
-import {useCloseAllActiveElements} from './state/util'
 
 const navigationRef = createNavigationContainerRef<AllNavigatorParams>()
 
@@ -302,7 +304,7 @@ function commonScreens(Stack: typeof Flat, unreadCountLabel?: string) {
       />
       <Stack.Screen
         name="Debug"
-        getComponent={() => Storybook}
+        getComponent={() => StorybookScreen}
         options={{title: title(msg`Storybook`), requireAuth: true}}
       />
       <Stack.Screen
@@ -413,6 +415,14 @@ function commonScreens(Stack: typeof Flat, unreadCountLabel?: string) {
         getComponent={() => ActivityPrivacySettingsScreen}
         options={{
           title: title(msg`Privacy and Security`),
+          requireAuth: true,
+        }}
+      />
+      <Stack.Screen
+        name="FindContactsSettings"
+        getComponent={() => FindContactsSettingsScreen}
+        options={{
+          title: title(msg`Find Contacts`),
           requireAuth: true,
         }}
       />
@@ -609,6 +619,15 @@ function commonScreens(Stack: typeof Flat, unreadCountLabel?: string) {
           requireAuth: true,
         }}
       />
+      <Stack.Screen
+        name="FindContactsFlow"
+        getComponent={() => FindContactsFlowScreen}
+        options={{
+          title: title(msg`Find Contacts`),
+          requireAuth: true,
+          gestureEnabled: false,
+        }}
+      />
     </>
   )
 }
@@ -617,7 +636,11 @@ function commonScreens(Stack: typeof Flat, unreadCountLabel?: string) {
  * The TabsNavigator is used by native mobile to represent the routes
  * in 3 distinct tab-stacks with a different root screen on each.
  */
-function TabsNavigator() {
+function TabsNavigator({
+  layout,
+}: {
+  layout: React.ComponentProps<typeof Tab.Navigator>['layout']
+}) {
   const tabBar = useCallback(
     (props: JSX.IntrinsicAttributes & BottomTabBarProps) => (
       <BottomBar {...props} />
@@ -630,7 +653,8 @@ function TabsNavigator() {
       initialRouteName="HomeTab"
       backBehavior="initialRoute"
       screenOptions={{headerShown: false, lazy: true}}
-      tabBar={tabBar}>
+      tabBar={tabBar}
+      layout={layout}>
       <Tab.Screen name="HomeTab" getComponent={() => HomeTabNavigator} />
       <Tab.Screen name="SearchTab" getComponent={() => SearchTabNavigator} />
       <Tab.Screen
@@ -738,7 +762,11 @@ function MessagesTabNavigator() {
  * The FlatNavigator is used by Web to represent the routes
  * in a single ("flat") stack.
  */
-const FlatNavigator = () => {
+const FlatNavigator = ({
+  layout,
+}: {
+  layout: React.ComponentProps<typeof Flat.Navigator>['layout']
+}) => {
   const t = useTheme()
   const numUnread = useUnreadNotifications()
   const screenListeners = useWebScrollRestoration()
@@ -746,6 +774,7 @@ const FlatNavigator = () => {
 
   return (
     <Flat.Navigator
+      layout={layout}
       screenListeners={screenListeners}
       screenOptions={screenOptions(t)}>
       <Flat.Screen
@@ -813,11 +842,11 @@ const LINKING = {
     // native, since the home tab and the home screen are defined as initial routes, we don't need to return a state
     // since it will be created by react-navigation.
     if (path.includes('intent/')) {
-      if (isNative) return
+      if (IS_NATIVE) return
       return buildStateObject('Flat', 'Home', params)
     }
 
-    if (isNative) {
+    if (IS_NATIVE) {
       if (name === 'Search') {
         return buildStateObject('SearchTab', 'Search', params)
       }
@@ -892,7 +921,7 @@ function RoutesContainer({children}: React.PropsWithChildren<{}>) {
   )
 
   async function handlePushNotificationEntry() {
-    if (!isNative) return
+    if (!IS_NATIVE) return
 
     // deep links take precedence - on android,
     // getLastNotificationResponseAsync returns a "notification"
@@ -1040,7 +1069,7 @@ function reset(): Promise<void> {
     navigationRef.dispatch(
       CommonActions.reset({
         index: 0,
-        routes: [{name: isNative ? 'HomeTab' : 'Home'}],
+        routes: [{name: IS_NATIVE ? 'HomeTab' : 'Home'}],
       }),
     )
     return Promise.race([
@@ -1074,7 +1103,7 @@ function logModuleInitTime() {
     initMs,
   })
 
-  if (isWeb) {
+  if (IS_WEB) {
     const referrerInfo = Referrer.getReferrerInfo()
     if (referrerInfo && referrerInfo.hostname !== 'bsky.app') {
       logEvent('deepLink:referrerReceived', {
