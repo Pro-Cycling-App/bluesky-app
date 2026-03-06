@@ -255,6 +255,10 @@ While there is no explicit "New Architecture migration" PR in this update, sever
 - The `expo-modules-core` used by custom native modules supports both architectures
 - The `react-native-edge-to-edge` package is New Architecture compatible
 
+#### 10. `LayoutAnimation` Usage — Potential New Architecture Concern
+- `ContentHider.tsx` and `PostHider.tsx` now use `LayoutAnimation.configureNext()` for smooth expand/collapse transitions
+- `LayoutAnimation` has historically had issues on Fabric (New Architecture) — worth testing if/when New Architecture is enabled
+
 #### Assessment
 The team appears to be in a **pre-migration cleanup phase**: removing legacy dependencies, eliminating polyfills that the New Architecture provides natively, restricting deprecated API usage (`findNodeHandle`), and moving to synchronous patterns. They haven't flipped the `newArchEnabled` flag yet, but they're systematically removing blockers. The iOS 26 work with Liquid Glass and fluid transitions also exercises native-layer APIs that will need Fabric support.
 
@@ -263,10 +267,16 @@ The team appears to be in a **pre-migration cleanup phase**: removing legacy dep
 Several legacy components were refactored to use ALF:
 
 - **Delete Account Dialog**: `src/view/com/modals/DeleteAccount.tsx` → `src/screens/Settings/components/DeleteAccountDialog.tsx` (#9863)
-- **Content Language Dialog**: `src/view/com/modals/lang-settings/` → `src/components/dialogs/LanguageSelectDialog.tsx` (#9471)
-- **Feed Error Screen**: New ALF error screen (#9895)
-- **Prompts Refresh**: Updated prompt styling (#9781)
-- **Prompt.Action**: Added optional props for more flexible prompts (#9887, #9889)
+- **Content Language Dialog**: `src/view/com/modals/lang-settings/` → `src/components/dialogs/LanguageSelectDialog.tsx` (#9471) — also deleted `ToggleButton.tsx` form component
+- **Feed Error Screen**: New ALF error screen (#9895) — replaces hand-rolled error UI with shared `ErrorScreen` component
+- **Prompts Refresh**: Updated prompt styling (#9781) — rounder dialogs (borderRadius: 36), narrower on web (320px vs 400px), vertical-only button layout
+- **Prompt.Action**: Added `disabled`, `icon`, and `shouldCloseOnPress` props (#9887, #9889) — **behavioral change**: `shouldCloseOnPress=false` allows multi-step flows within prompts
+
+#### ALF Palette Breaking Change (#9911)
+- `@bsky.app/alf` bumped `^0.1.6` → `^0.1.7`
+- Added `t.palette.yellow` and `t.palette.pink` to the theme
+- **BREAKING**: The `colors` export from `src/components/Admonition.tsx` was **removed entirely**. Any fork code importing `{colors} from '#/components/Admonition'` will break. The hardcoded `#FFC404` warning color is now `t.palette.yellow`.
+- `t.palette.like` replaced with `t.palette.pink` for heart/like icon colors
 
 ### App Config System
 
