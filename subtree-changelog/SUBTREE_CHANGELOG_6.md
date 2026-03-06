@@ -136,8 +136,11 @@ These changes touch many files broadly and are likely to cause merge conflicts w
   - Fluid zoom transition for alt text dialog
   - Dialog/Menu components updated for iOS 26 compatibility
   - Composer UI adjustments for Liquid Glass
-- **Native Code**: `modules/bottom-sheet/ios/SheetViewController.swift` — iOS 26 safe area adjustments
-- **New prop**: `sourceViewTag` on BottomSheetNativeComponent (for fluid transitions)
+- **Build Config**: Removed `UIDesignRequiresCompatibility: true` from `app.config.js` Info.plist — this opts the app **into** iOS 26 Liquid Glass design (without this removal, the app would run in legacy compatibility mode)
+- **Native Code**: `modules/bottom-sheet/ios/SheetViewController.swift` — iOS 26 safe area adjustments for floaty sheets
+- **Native Code**: `modules/bottom-sheet/ios/SheetView.swift` — New `.zoom` fluid transition using `preferredTransition` (iOS 26 API), gated behind `if #available(iOS 26.0, *)`
+- **New prop**: `sourceViewTag` on BottomSheetNativeComponent (for fluid zoom-from-source transitions)
+- **Navigation**: `scrollEdgeEffects: { top: 'soft' }` — new iOS 26 blur effect at top of scrollable content on Home screen
 - **Impact**: Many UI components have `IS_LIQUID_GLASS` conditionals added
 
 #### Android Edge-to-Edge Bottom Sheets
