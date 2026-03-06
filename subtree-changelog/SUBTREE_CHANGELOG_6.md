@@ -236,6 +236,10 @@ While there is no explicit "New Architecture migration" PR in this update, sever
 - Replaced complex ref-counting `KeyboardProvider` wrapper with direct usage of `react-native-keyboard-controller` `^1.20.7`
 - `react-native-keyboard-controller` 1.20+ has full New Architecture support with Fabric
 
+#### 5b. JS-based → Native Keyboard Handling (PR #9959)
+- Replaced `KeyboardAwareScrollView` (from `react-native-keyboard-controller`) with native iOS `ScrollView` features (`automaticallyAdjustKeyboardInsets`, `contentInsetAdjustmentBehavior`) in the Dialog component
+- Moving from JS-driven to native-driven keyboard handling aligns with Fabric's preference for native-driven UI
+
 #### 6. `expo-task-manager` Removed
 - This Expo module had known incompatibilities with the New Architecture. Its removal clears a blocker.
 
