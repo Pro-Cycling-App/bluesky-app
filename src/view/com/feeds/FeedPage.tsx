@@ -8,7 +8,7 @@ import {
 } from 'react'
 import {View} from 'react-native'
 import {type AppBskyActorDefs, AppBskyFeedDefs} from '@atproto/api'
-import {msg} from '@lingui/macro'
+import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 import {type NavigationProp, useNavigation} from '@react-navigation/native'
 import {useQueryClient} from '@tanstack/react-query'
@@ -123,7 +123,7 @@ export function FeedPage({
   }, [onSoftReset, isPageFocused])
 
   const onPressCompose = useCallback(() => {
-    openComposer({})
+    openComposer({logContext: 'Fab'})
   }, [openComposer])
 
   const onPressLoadLatest = useCallback(() => {

@@ -1,24 +1,24 @@
-import React from 'react'
+import {memo, useCallback, useState} from 'react'
 import {
-  ActivityIndicator,
-  StyleSheet,
+  type StyleProp,
   TouchableOpacity,
   View,
   type ViewStyle,
 } from 'react-native'
-import {msg} from '@lingui/macro'
-import {useLingui} from '@lingui/react'
+import {useLingui} from '@lingui/react/macro'
 import {StackActions, useNavigation} from '@react-navigation/native'
 
-import {usePalette} from '#/lib/hooks/usePalette'
 import {type NavigationProp} from '#/lib/routes/types'
 import {useModerationOpts} from '#/state/preferences/moderation-opts'
 import {useActorAutocompleteQuery} from '#/state/queries/actor-autocomplete'
-import {Link} from '#/view/com/util/Link'
-import {Text} from '#/view/com/util/text/Text'
 import {SearchProfileCard} from '#/screens/Search/components/SearchProfileCard'
-import {atoms as a} from '#/alf'
+import {atoms as a, useTheme} from '#/alf'
 import {SearchInput} from '#/components/forms/SearchInput'
+import {Link} from '#/components/Link'
+import {Loader} from '#/components/Loader'
+import {Text} from '#/components/Typography'
+
+const WHITESPACE_RE = /\s+/gu
 
 let SearchLinkCard = ({
   label,
@@ -29,20 +29,17 @@ let SearchLinkCard = ({
   label: string
   to?: string
   onPress?: () => void
-  style?: ViewStyle
+  style?: StyleProp<ViewStyle>
 }): React.ReactNode => {
-  const pal = usePalette('default')
+  const t = useTheme()
 
   const inner = (
-    <View
-      style={[pal.border, {paddingVertical: 16, paddingHorizontal: 12}, style]}>
-      <Text type="md" style={[pal.text]}>
-        {label}
-      </Text>
+    <View style={[a.py_lg, a.px_md, t.atoms.border_contrast_low, style]}>
+      <Text style={[a.text_md, t.atoms.text]}>{label}</Text>
     </View>
   )
 
-  if (onPress) {
+  if (onPress || !to) {
     return (
       <TouchableOpacity
         onPress={onPress}
@@ -54,114 +51,106 @@ let SearchLinkCard = ({
   }
 
   return (
-    <Link href={to} asAnchor anchorNoUnderline>
-      <View
-        style={[
-          pal.border,
-          {paddingVertical: 16, paddingHorizontal: 12},
-          style,
-        ]}>
-        <Text type="md" style={[pal.text]}>
-          {label}
-        </Text>
-      </View>
+    <Link
+      label={label}
+      to={to}
+      style={[a.py_lg, a.px_md, t.atoms.border_contrast_low, style]}
+      hoverStyle={[t.atoms.bg_contrast_25]}>
+      <Text style={[a.text_md, t.atoms.text]}>{label}</Text>
     </Link>
   )
 }
-SearchLinkCard = React.memo(SearchLinkCard)
+SearchLinkCard = memo(SearchLinkCard)
 export {SearchLinkCard}
 
 export function DesktopSearch() {
-  const {_} = useLingui()
-  const pal = usePalette('default')
+  const t = useTheme()
+  const {t: l} = useLingui()
   const navigation = useNavigation<NavigationProp>()
-  const [isActive, setIsActive] = React.useState<boolean>(false)
-  const [query, setQuery] = React.useState<string>('')
+  const [isActive, setIsActive] = useState<boolean>(false)
+  const [query, setQuery] = useState<string>('')
   const {data: autocompleteData, isFetching} = useActorAutocompleteQuery(
     query,
     true,
   )
+  const tQuery = query.replace(WHITESPACE_RE, ' ').trim()
 
   const moderationOpts = useModerationOpts()
 
-  const onChangeText = React.useCallback((text: string) => {
+  const onChangeText = useCallback((text: string) => {
     setQuery(text)
     setIsActive(text.length > 0)
   }, [])
 
-  const onPressCancelSearch = React.useCallback(() => {
+  const onPressCancelSearch = useCallback(() => {
     setQuery('')
     setIsActive(false)
   }, [setQuery])
 
-  const onSubmit = React.useCallback(() => {
+  const onSubmit = useCallback(() => {
     setIsActive(false)
-    if (!query.length) return
-    navigation.dispatch(StackActions.push('Search', {q: query}))
-  }, [query, navigation])
+    if (!tQuery.length) return
+    navigation.dispatch(StackActions.push('Search', {q: tQuery}))
+  }, [tQuery, navigation])
 
-  const onSearchProfileCardPress = React.useCallback(() => {
+  const onSearchProfileCardPress = useCallback(() => {
     setQuery('')
     setIsActive(false)
   }, [])
 
   return (
-    <View style={[styles.container, pal.view]}>
+    <View style={[a.relative, a.w_full, a.z_10, t.atoms.bg]}>
       <SearchInput
         value={query}
         onChangeText={onChangeText}
         onClearText={onPressCancelSearch}
         onSubmitEditing={onSubmit}
       />
-      {query !== '' && isActive && moderationOpts && (
+      {tQuery !== '' && isActive && moderationOpts && (
         <View
           style={[
-            pal.view,
-            pal.borderDark,
-            styles.resultsContainer,
-            a.overflow_hidden,
+            a.mt_sm,
+            a.flex_col,
+            a.w_full,
+            a.border,
+            a.rounded_sm,
+            a.zoom_fade_in,
+            t.atoms.bg,
+            t.atoms.shadow_sm,
+            t.atoms.border_contrast_low,
+            {
+              overflow: 'hidden',
+              position: 'absolute',
+              top: '100%',
+            },
           ]}>
+          <SearchLinkCard
+            label={l`Search for “${tQuery}”`}
+            to={`/search?q=${encodeURIComponent(tQuery)}`}
+            style={(autocompleteData?.length ?? 0) > 0 ? a.border_b : undefined}
+          />
           {isFetching && !autocompleteData?.length ? (
-            <View style={{padding: 8}}>
-              <ActivityIndicator />
+            <View
+              style={[
+                a.py_lg,
+                a.align_center,
+                a.border_t,
+                t.atoms.border_contrast_low,
+              ]}>
+              <Loader size="lg" />
             </View>
           ) : (
-            <>
-              <SearchLinkCard
-                label={_(msg`Search for "${query}"`)}
-                to={`/search?q=${encodeURIComponent(query)}`}
-                style={
-                  (autocompleteData?.length ?? 0) > 0
-                    ? {borderBottomWidth: 1}
-                    : undefined
-                }
+            autocompleteData?.map(item => (
+              <SearchProfileCard
+                key={item.did}
+                profile={item}
+                moderationOpts={moderationOpts}
+                onPress={onSearchProfileCardPress}
               />
-              {autocompleteData?.map(item => (
-                <SearchProfileCard
-                  key={item.did}
-                  profile={item}
-                  moderationOpts={moderationOpts}
-                  onPress={onSearchProfileCardPress}
-                />
-              ))}
-            </>
+            ))
           )}
         </View>
       )}
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'relative',
-    width: '100%',
-  },
-  resultsContainer: {
-    marginTop: 10,
-    flexDirection: 'column',
-    width: '100%',
-    borderWidth: 1,
-    borderRadius: 6,
-  },
-})

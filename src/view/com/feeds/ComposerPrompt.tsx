@@ -1,7 +1,8 @@
 import {useCallback, useState} from 'react'
 import {Keyboard, Pressable, View} from 'react-native'
-import {msg, Trans} from '@lingui/macro'
+import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
+import {Trans} from '@lingui/react/macro'
 
 import {useOpenComposer} from '#/lib/hooks/useOpenComposer'
 import {
@@ -37,7 +38,7 @@ export function ComposerPrompt() {
 
   const onPress = useCallback(() => {
     ax.metric('composerPrompt:press', {})
-    openComposer({})
+    openComposer({logContext: 'Fab'})
   }, [ax, openComposer])
 
   const onPressImage = useCallback(async () => {
@@ -45,7 +46,7 @@ export function ComposerPrompt() {
 
     // On web, open the composer with the gallery picker auto-opening
     if (!IS_NATIVE) {
-      openComposer({openGallery: true})
+      openComposer({openGallery: true, logContext: 'Fab'})
       return
     }
 
@@ -83,7 +84,7 @@ export function ComposerPrompt() {
           }))
 
         if (imageUris.length > 0) {
-          openComposer({imageUris})
+          openComposer({imageUris, logContext: 'Fab'})
         }
       }
     } catch (err: any) {
@@ -125,6 +126,7 @@ export function ComposerPrompt() {
 
       openComposer({
         imageUris: IS_NATIVE ? imageUris : undefined,
+        logContext: 'Fab',
       })
     } catch (err: any) {
       if (!String(err).toLowerCase().includes('cancel')) {

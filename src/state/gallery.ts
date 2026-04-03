@@ -1,5 +1,6 @@
 import {
   cacheDirectory,
+  copyAsync,
   deleteAsync,
   makeDirectoryAsync,
   moveAsync,
@@ -18,7 +19,7 @@ import {openCropper} from '#/lib/media/picker'
 import {type PickerImage} from '#/lib/media/picker.shared'
 import {getDataUriSize} from '#/lib/media/util'
 import {isCancelledError} from '#/lib/strings/errors'
-import {IS_NATIVE} from '#/env'
+import {IS_NATIVE, IS_WEB} from '#/env'
 
 export type ImageTransformation = {
   crop?: ActionCrop['crop']
@@ -38,6 +39,8 @@ export type ImageSource = ImageMeta & {
 type ComposerImageBase = {
   alt: string
   source: ImageSource
+  /** Original localRef path from draft, if editing an existing draft. Used to reuse the same storage key. */
+  localRefPath?: string
 }
 type ComposerImageWithoutTransformation = ComposerImageBase & {
   transformed?: undefined
@@ -69,7 +72,8 @@ export async function createComposerImage(
     alt: '',
     source: {
       id: nanoid(),
-      path: await moveIfNecessary(raw.path),
+      // Copy to cache to ensure file survives OS temporary file cleanup
+      path: await copyToCache(raw.path),
       width: raw.width,
       height: raw.height,
       mime: raw.mime,
@@ -196,19 +200,44 @@ export function resetImageManipulation(
   return img
 }
 
-export async function compressImage(img: ComposerImage): Promise<PickerImage> {
+export async function compressImage(
+  img: ComposerImage,
+  options?: {
+    highResolution?: boolean
+  },
+): Promise<PickerImage> {
   const source = img.transformed || img.source
+  const highResolution = options?.highResolution ?? false
 
-  const [w, h] = containImageRes(source.width, source.height, POST_IMG_MAX)
+  let attempts = 0
+  let maxDimension = highResolution ? 4000 : POST_IMG_MAX.width
 
   let minQualityPercentage = 0
   let maxQualityPercentage = 101 // exclusive
   let newDataUri
 
   while (maxQualityPercentage - minQualityPercentage > 1) {
+    if (attempts >= 4) break
+
+    const [w, h] = containImageRes(source.width, source.height, maxDimension)
     const qualityPercentage = Math.round(
       (maxQualityPercentage + minQualityPercentage) / 2,
     )
+
+    /*
+     * In the event the image doesn't compress well, we want to avoid
+     * unecessary iterations. In this case, binary search will check 51, 26,
+     * 13(rounded). We don't want to go below 25, so if we've halved to 13,
+     * reset the loop and reduce the image dimensions instead.
+     */
+    if (qualityPercentage <= 13) {
+      minQualityPercentage = 0
+      maxQualityPercentage = 101
+      attempts++
+      // 4000px → 3200px → 2560px → 2048px → ~1638px
+      maxDimension = Math.floor(maxDimension * 0.8)
+      continue
+    }
 
     const res = await manipulateAsync(
       source.path,
@@ -258,6 +287,71 @@ async function moveIfNecessary(from: string) {
   return from
 }
 
+/**
+ * Copy a file from a potentially temporary location to our cache directory.
+ * This ensures picker files are available for draft saving even if the original
+ * temporary files are cleaned up by the OS.
+ *
+ * On web, converts blob URLs to data URIs immediately to prevent revocation issues.
+ */
+async function copyToCache(from: string): Promise<string> {
+  // Data URIs don't need any conversion
+  if (from.startsWith('data:')) {
+    return from
+  }
+
+  if (IS_WEB) {
+    // Web: convert blob URLs to data URIs before they can be revoked
+    if (from.startsWith('blob:')) {
+      try {
+        const response = await fetch(from)
+        const blob = await response.blob()
+        return await blobToDataUri(blob)
+      } catch (e) {
+        // Blob URL was likely revoked, return as-is for downstream error handling
+        return from
+      }
+    }
+    // Other URLs on web don't need conversion
+    return from
+  }
+
+  // Native: copy to cache directory to survive OS temp file cleanup
+  const cacheDir = getImageCacheDirectory()
+  if (!cacheDir || from.startsWith(cacheDir)) {
+    return from
+  }
+
+  const to = joinPath(cacheDir, nanoid(36))
+  await makeDirectoryAsync(cacheDir, {intermediates: true})
+
+  let normalizedFrom = from
+  if (!from.startsWith('file://') && from.startsWith('/')) {
+    normalizedFrom = `file://${from}`
+  }
+
+  await copyAsync({from: normalizedFrom, to})
+  return to
+}
+
+/**
+ * Convert a Blob to a data URI
+ */
+function blobToDataUri(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result)
+      } else {
+        reject(new Error('Failed to convert blob to data URI'))
+      }
+    }
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(blob)
+  })
+}
+
 /** Purge files that were created to accomodate image manipulation */
 export async function purgeTemporaryImageFiles() {
   const cacheDir = IS_NATIVE && getImageCacheDirectory()
@@ -283,12 +377,12 @@ function joinPath(a: string, b: string) {
 function containImageRes(
   w: number,
   h: number,
-  {width: maxW, height: maxH}: {width: number; height: number},
+  max: number,
 ): [width: number, height: number] {
   let scale = 1
 
-  if (w > maxW || h > maxH) {
-    scale = w > h ? maxW / w : maxH / h
+  if (w > max || h > max) {
+    scale = w > h ? max / w : max / h
     w = Math.floor(w * scale)
     h = Math.floor(h * scale)
   }

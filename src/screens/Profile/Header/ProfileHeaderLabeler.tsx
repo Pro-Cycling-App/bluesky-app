@@ -7,8 +7,9 @@ import {
   type ModerationOpts,
   type RichText as RichTextAPI,
 } from '@atproto/api'
-import {msg, Plural, plural, Trans} from '@lingui/macro'
+import {msg, plural} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
+import {Plural, Trans} from '@lingui/react/macro'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import {MAX_LABELERS} from '#/lib/constants'
@@ -212,13 +213,15 @@ function CantSubscribePrompt({
   const {_} = useLingui()
   return (
     <Prompt.Outer control={control}>
-      <Prompt.TitleText>Unable to subscribe</Prompt.TitleText>
-      <Prompt.DescriptionText>
-        <Trans>
-          We're sorry! You can only subscribe to twenty labelers, and you've
-          reached your limit of twenty.
-        </Trans>
-      </Prompt.DescriptionText>
+      <Prompt.Content>
+        <Prompt.TitleText>Unable to subscribe</Prompt.TitleText>
+        <Prompt.DescriptionText>
+          <Trans>
+            We're sorry! You can only subscribe to twenty labelers, and you've
+            reached your limit of twenty.
+          </Trans>
+        </Prompt.DescriptionText>
+      </Prompt.Content>
       <Prompt.Actions>
         <Prompt.Action onPress={() => control.close()} cta={_(msg`OK`)} />
       </Prompt.Actions>
@@ -349,7 +352,6 @@ export function HeaderLabelerButtons({
         </Button>
       ) : null}
       <ProfileMenu profile={profile} />
-
       <CantSubscribePrompt control={cantSubscribePrompt} />
     </>
   )

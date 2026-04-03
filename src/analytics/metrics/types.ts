@@ -2,6 +2,8 @@
  * Do not import runtime code into this file
  */
 
+import {type Platform} from 'react-native'
+
 import {type NotificationReason} from '#/lib/hooks/useNotificationHandler'
 import {type FeedDescriptor} from '#/state/queries/post-feed'
 import {type LiveEventFeedMetricContext} from '#/features/liveEvents/types'
@@ -14,6 +16,14 @@ export type Events = {
   'experiment:viewed': {
     experimentId: string
     variationId: string
+  }
+  'feature:viewed': {
+    featureId: string
+    featureResultValue: unknown
+    /** Only available if feature has experiment rules applied */
+    experimentId?: string
+    /** Only available if feature has experiment rules applied */
+    variationId?: string
   }
 
   'account:loggedIn': {
@@ -220,6 +230,9 @@ export type Events = {
 
   'composer:gif:open': {}
   'composer:gif:select': {}
+  'composer:image:edit': {
+    platform: Platform['OS']
+  }
   'composerPrompt:press': {}
   'composerPrompt:camera:press': {}
   'composerPrompt:gallery:press': {}
@@ -232,6 +245,53 @@ export type Events = {
     quotesEnabled: boolean
     persist: boolean
     hasChanged: boolean
+  }
+  'composer:open': {
+    logContext:
+      | 'Fab'
+      | 'PostReply'
+      | 'QuotePost'
+      | 'ProfileFeed'
+      | 'Deeplink'
+      | 'Other'
+    isReply: boolean
+    hasQuote: boolean
+    hasDraft: boolean
+  }
+  'draft:save': {
+    isNewDraft: boolean
+    hasText: boolean
+    hasImages: boolean
+    hasVideo: boolean
+    hasGif: boolean
+    hasQuote: boolean
+    hasLink: boolean
+    postCount: number
+    textLength: number
+  }
+  'draft:load': {
+    draftAgeMs: number
+    hasText: boolean
+    hasImages: boolean
+    hasVideo: boolean
+    hasGif: boolean
+    postCount: number
+  }
+  'draft:delete': {
+    logContext: 'DraftsList'
+    draftAgeMs: number
+  }
+  'draft:listOpen': {
+    draftCount: number
+  }
+  'draft:post': {
+    draftAgeMs: number
+    wasEdited: boolean
+  }
+  'draft:discard': {
+    logContext: 'ComposerClose' | 'BeforeDraftsList'
+    hadContent: boolean
+    textLength: number
   }
 
   // Data events
@@ -413,15 +473,21 @@ export type Events = {
     profileDid: string
     position?: number
   }
+  'profile:mute': {}
+  'profile:unmute': {}
+  'profile:block': {}
+  'profile:unblock': {}
   'suggestedUser:follow': {
     logContext:
       | 'Explore'
-      | 'InterstitialDiscover'
-      | 'InterstitialProfile'
-      | 'Profile'
+      | 'DiscoverInterstitial'
+      | 'ProfileInterstitial'
+      | 'ProfileHeader'
       | 'Onboarding'
-    location: 'Card' | 'Profile'
-    recId?: number
+      | 'SeeMoreSuggestedUsers'
+      | 'ProgressGuide'
+    location: 'Card' | 'Profile' | 'FollowAll'
+    recId?: number | string
     position: number
     suggestedDid: string
     category: string | null
@@ -429,10 +495,12 @@ export type Events = {
   'suggestedUser:press': {
     logContext:
       | 'Explore'
-      | 'InterstitialDiscover'
-      | 'InterstitialProfile'
+      | 'DiscoverInterstitial'
+      | 'ProfileInterstitial'
+      | 'ProfileHeader'
       | 'Onboarding'
-    recId?: number
+      | 'SeeMoreSuggestedUsers'
+    recId?: number | string
     position: number
     suggestedDid: string
     category: string | null
@@ -440,12 +508,13 @@ export type Events = {
   'suggestedUser:seen': {
     logContext:
       | 'Explore'
-      | 'InterstitialDiscover'
-      | 'InterstitialProfile'
-      | 'Profile'
+      | 'DiscoverInterstitial'
+      | 'ProfileInterstitial'
+      | 'ProfileHeader'
       | 'Onboarding'
+      | 'SeeMoreSuggestedUsers'
       | 'ProgressGuide'
-    recId?: number
+    recId?: number | string
     position: number
     suggestedDid: string
     category: string | null
@@ -453,14 +522,15 @@ export type Events = {
   'suggestedUser:seeMore': {
     logContext:
       | 'Explore'
-      | 'InterstitialDiscover'
-      | 'InterstitialProfile'
-      | 'Profile'
+      | 'DiscoverInterstitial'
+      | 'ProfileInterstitial'
+      | 'ProfileHeader'
       | 'Onboarding'
+    recId?: number | string
   }
   'suggestedUser:dismiss': {
-    logContext: 'InterstitialDiscover' | 'InterstitialProfile'
-    recId?: number
+    logContext: 'DiscoverInterstitial' | 'ProfileInterstitial' | 'ProfileHeader'
+    recId?: number | string
     position: number
     suggestedDid: string
   }
@@ -515,6 +585,10 @@ export type Events = {
     setDescription: boolean
     profilesCount: number
     feedsCount: number
+  }
+  'starterPack:convertToList': {
+    starterPack: string
+    memberCount: number
   }
   'starterPack:ctaPress': {
     starterPack: string
@@ -588,6 +662,32 @@ export type Events = {
     tab: string
   }
 
+  'search:query': {
+    source: 'typed' | 'history' | 'autocomplete'
+  }
+
+  'search:results:loaded': {
+    tab: 'top' | 'latest' | 'people' | 'feeds'
+    initialCount: number
+  }
+
+  'search:result:press': {
+    tab?: 'top' | 'latest' | 'people' | 'feeds'
+    resultType: 'post' | 'profile' | 'feed'
+    position: number
+    uri: string
+  }
+
+  'search:recent:press': {
+    profileDid: string
+    position: number
+  }
+
+  'search:autocomplete:press': {
+    profileDid: string
+    position: number
+  }
+
   'progressGuide:hide': {}
   'progressGuide:followDialog:open': {}
 
@@ -616,9 +716,115 @@ export type Events = {
   'reportDialog:failure': {}
 
   translate: {
-    sourceLanguages: string[]
-    targetLanguage: string
+    os: Platform['OS']
+    /**
+     * The languages the content might be in, such as the user-supplied
+     * language codes on posts. Currently only available on posts.
+     */
+    possibleSourceLanguages: string[] | undefined
+    /**
+     * This is the user's configured primary language, which is always defined.
+     */
+    expectedTargetLanguage: string
+    /**
+     * The length of the text being translated. We assume shorter texts are
+     * more likely to have inaccurate translations.
+     */
     textLength: number
+    googleTranslate: boolean
+  }
+  'translate:result': {
+    success: boolean
+    os: Platform['OS']
+    /**
+     * The languages the content might be in, such as the user-supplied
+     * language codes on posts. Currently only available on posts.
+     */
+    possibleSourceLanguages: string[] | undefined
+    /**
+     * The language we expected the content to be in. This could be based on
+     * user selection or on our confidence in the detected language. This is
+     * nullable because we may not always have an expected source language.
+     */
+    expectedSourceLanguage: string | null
+    /**
+     * This is the user's configured primary language, which is always defined.
+     */
+    expectedTargetLanguage: string
+    /**
+     * The language the translation result was actually in. This is nullable
+     * because the translation could have failed, in which case we won't have a
+     * result source language.
+     */
+    resultSourceLanguage: string | null
+    /**
+     * The language the translation result was translated into. This should be
+     * the same as `expectedTargetLanguage`, but we include it for completeness
+     * and in case there are any edge cases where they differ. This is nullable
+     * because if the translation failed, we won't have a result target
+     * language.
+     */
+    resultTargetLanguage: string | null
+    /**
+     * The length of the text being translated. We assume shorter texts are
+     * more likely to have inaccurate translations.
+     */
+    textLength: number
+  }
+  'translate:override': {
+    os: Platform['OS']
+    /**
+     * The languages the content might be in, such as the user-supplied
+     * language codes on posts. Currently only available on posts.
+     */
+    possibleSourceLanguages: string[] | undefined
+    /**
+     * The language the user has indicated the content is actually in, which
+     * may be different from the expected source language if the user is
+     * overriding the auto-detected language. This is the language the user
+     * wants to translate from after overriding.
+     */
+    expectedSourceLanguage: string
+    /**
+     * This is the user's configured primary language, which is always defined.
+     */
+    expectedTargetLanguage: string
+    /**
+     * The language the translation result was actually in, which the user now
+     * wishes to override.
+     */
+    resultSourceLanguage: string
+  }
+
+  'postMenu:openMuteWordsDialog': {
+    uri: string
+    authorDid: string
+    logContext: 'FeedItem' | 'PostThreadItem' | 'Post' | 'ImmersiveVideo'
+    feedDescriptor?: string
+  }
+  'postMenu:muteAccount': {
+    uri: string
+    authorDid: string
+    logContext: 'FeedItem' | 'PostThreadItem' | 'Post' | 'ImmersiveVideo'
+    feedDescriptor?: string
+  }
+  'postMenu:unmuteAccount': {
+    uri: string
+    authorDid: string
+    logContext: 'FeedItem' | 'PostThreadItem' | 'Post' | 'ImmersiveVideo'
+    feedDescriptor?: string
+  }
+  'postMenu:blockAccount': {
+    uri: string
+    authorDid: string
+    logContext: 'FeedItem' | 'PostThreadItem' | 'Post' | 'ImmersiveVideo'
+    feedDescriptor?: string
+  }
+  'postMenu:reportPost': {
+    uri: string
+    authorDid: string
+    logContext: 'FeedItem' | 'PostThreadItem' | 'Post' | 'ImmersiveVideo'
+    feedDescriptor?: string
   }
 
   'verification:create': {}
@@ -633,6 +839,9 @@ export type Events = {
   }
   'verification:settings:hideBadges': {}
   'verification:settings:unHideBadges': {}
+
+  'bot:label:toggle': {state: 'add' | 'remove'}
+  'bot:badge:click': {}
 
   'live:create': {duration: number}
   'live:edit': {}
@@ -711,6 +920,7 @@ export type Events = {
     canUpdateBirthday: boolean
   }
   'ageAssurance:noAccessScreen:openBirthdateDialog': {}
+  'ageAssurance:noAccessScreen:openDeleteAccountDialog': {}
 
   /*
    * Specifically for the `BlockedGeoOverlay`
@@ -828,4 +1038,9 @@ export type Events = {
   'liveEvents:unhideAllFeedBanners': {
     context: LiveEventFeedMetricContext
   }
+
+  'profile:associated:germ:click-to-chat': {}
+  'profile:associated:germ:click-self-info': {}
+  'profile:associated:germ:self-disconnect': {}
+  'profile:associated:germ:self-reconnect': {}
 }
