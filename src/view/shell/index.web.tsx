@@ -9,9 +9,7 @@ import {useIntentHandler} from '#/lib/hooks/useIntentHandler'
 import {type NavigationProp} from '#/lib/routes/types'
 import {useSession} from '#/state/session'
 import {useIsDrawerOpen, useSetDrawerOpen} from '#/state/shell'
-import {useComposerKeyboardShortcut} from '#/state/shell/composer/useComposerKeyboardShortcut'
 import {useCloseAllActiveElements} from '#/state/util'
-import {Lightbox} from '#/view/com/lightbox/Lightbox'
 import {ModalsContainer} from '#/view/com/modals/Modal'
 import {ErrorBoundary} from '#/view/com/util/ErrorBoundary'
 import {Deactivated} from '#/screens/Deactivated'
@@ -24,6 +22,7 @@ import {MutedWordsDialog} from '#/components/dialogs/MutedWords'
 import {NuxDialogs} from '#/components/dialogs/nuxs'
 import {SigninDialog} from '#/components/dialogs/Signin'
 import {useWelcomeModal} from '#/components/hooks/useWelcomeModal'
+import {Lightbox} from '#/components/Lightbox'
 import {GlobalReportDialog} from '#/components/moderation/ReportDialog'
 import {
   Outlet as PolicyUpdateOverlayPortalOutlet,
@@ -45,7 +44,6 @@ function ShellInner() {
   const {state: policyUpdateState} = usePolicyUpdateContext()
   const welcomeModalControl = useWelcomeModal()
 
-  useComposerKeyboardShortcut()
   useIntentHandler()
 
   useEffect(() => {
