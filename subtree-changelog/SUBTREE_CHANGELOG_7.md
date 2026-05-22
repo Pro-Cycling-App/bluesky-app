@@ -291,4 +291,38 @@ This update changes how the project is installed, patched, and typechecked. For 
    ```
 
 ---
+
+## Notes — Toolchain & Current State (verified 2026-05-22 @ `7c5a9ab40`)
+
+Investigation of upstream's current setup, focused on what matters for consuming this fork as a pnpm subtree in our monorepo. Upstream has **no `CHANGELOG.md`** — GitHub release tags are their changelog (latest tagged is v1.121.0; 1.122.0 is bumped in `package.json` but not yet released). We are fully caught up: upstream `main` is still `7c5a9ab40`, 0 commits ahead.
+
+### Package manager: pnpm (big win for our monorepo)
+- pnpm 11.1.3; Node ≥ 24.15.0. No root `.npmrc` — all config is in **`pnpm-workspace.yaml`**.
+- **`nodeLinker: 'hoisted'`** — a flat `node_modules` like Yarn/npm. This is the key Expo/Metro/React-Native compatibility setting (their default symlinked store breaks RN autolinking). Match this in any standalone install.
+- `overrides:` replaces Yarn `resolutions`. `autoInstallPeers: true`, `strictPeerDependencies: false`.
+- `allowBuilds:` — pnpm 11 requires explicit approval for dependency build/install scripts (`@sentry/cli`, `core-js-pure`, `dtrace-provider`, `esbuild`, `unrs-resolver`). New native-build deps must be listed or pnpm silently skips their build.
+- `minimumReleaseAgeExclude: ['@atproto/*', '@bsky.app/*']` — supply-chain release-age delay, with bsky's own scopes exempted.
+- Expo specifics in `package.json › expo`: `autolinking.android.buildFromSource` compiles the patched expo modules (notifications/haptics/media-library/image-picker) from source so patches apply; `install.exclude` keeps reanimated / @sentry/react-native / pager-view from being "corrected" by `expo install`.
+- **Why this helps us:** our monorepo is already pnpm, so lockfile semantics, resolution, and patching now match — fewer merge conflicts and less impedance when pulling their code in. (Install gotcha on our machines: never `pnpm install` over a Yarn-era `node_modules`; `rm -rf node_modules` first or postinstall scripts fail with exit 126.)
+
+### Patch system: pnpm `patchedDependencies` (was patch-package)
+- `patch-package` + `postinstall-postinstall` removed. Patches are declared in `pnpm-workspace.yaml › patchedDependencies` and named `<pkg>@<version>.patch` (was patch-package's `<pkg>+<version>.patch`). The five split `react-native+0.81.5+00N` patches are now one `react-native@0.81.5.patch`.
+- Add/edit a patch via `pnpm patch <pkg>@<version>` → edit temp dir → `pnpm patch-commit <dir>`.
+- **Why this helps us:** our monorepo uses the same pnpm patch mechanism, so bringing their patches in is now copy the changed `patches/` files + merge the `patchedDependencies` map — no `+`→`@` format translation.
+
+### Linting: still typescript-eslint (type-aware) — NOT oxlint
+- `eslint.config.mjs` (flat config), **`typescript-eslint` v8**. **Type-aware linting is ON**: `tseslint.configs.recommendedTypeChecked` + `parserOptions.projectService: true`.
+- Rule posture: `no-explicit-any` = **error**; most other type-aware rules (`no-unsafe-*`, `no-floating-promises`, `require-await`, …) = **warn** (gradual adoption). Default `React` import is banned (named imports only) via `no-restricted-imports`.
+- **Oxlint: not adopted.** Two open, unmerged exploratory PRs: **#10384 "Migrate to Oxlint"** (2026-04-28, +596/−2663, a one-shot "Oxlint agent skill" experiment, no follow-up) and **#9768 "✨ Oxlint"** (draft, stale since 2026-01-27). **Both are solo PRs by mozzius (core maintainer) with 0 reviews and 0 human comments** (only the automated bundle-size bot), untouched since the day each was opened — no merge trajectory. Worth watching #10384 but main is firmly typescript-eslint.
+- Lint scope nuance (the merge-commit gotcha above): `pnpm lint` is `eslint src` only, but the pre-commit hook lints all staged files including non-`src` root config files that aren't in any tsconfig — hence type-aware errors on a big vendor merge.
+
+### TypeScript: `tsc` → `tsgo`
+- `typecheck` = `tsgo --project ./tsconfig.check.json` (`@typescript/native-preview`, the Go-based compiler). Much faster (~280ms here); it's a preview, so minor behavior differences from `tsc` are possible.
+
+### React Native New Architecture: still OFF, momentum stalled
+- `app.config.js`: **`newArchEnabled: false`** on all platforms. Still RN **0.81.5** / Expo **54.0.34** / Reanimated **3.19.1**. Last legacy modal (`UserAddRemoveLists.tsx` + `Modal.tsx`) still present. The only build-config change this range was `cxxLanguageStandard: 'c++23'`.
+- **No new-arch commits in the 1.120→1.122 range.** **All three genuinely fabric-focused PRs are open and stale**: #8544 (haileyok, iOS sheets/scroll forwarder/paste — last touched 2026-02-02), #8546 (mozzius, Android composer Reanimated layout animations — 2026-02-09), #9621 (mozzius, profile-page Reanimated perf — 2026-01-08). Nothing fabric-specific has been touched since 2026-02-09. The only new-arch-adjacent merge in range was #10158 (expo-paste-input, an incidental new-arch-compatible lib swap, not focused fabric work). The critical-path **Expo 55 / RN 0.83 + Reanimated v4 upgrade has not started** (no such PR). No recent `-na-rc` releases (last were 1.104.0-rc, June 2025).
+- **Assessment:** clearly slower than the big 2025 push / June-2025 production rollback. They remain gated on the Expo 55 / RN 0.83 / Reanimated v4 upgrade, which hasn't begun; ongoing ALF/edge-to-edge cleanup is normal dev, not a focused new-arch drive. Full history in `NEW_ARCH_PROGRESS.md`.
+
+---
 *This changelog documents changes merged from the upstream Bluesky Social App repository.*
