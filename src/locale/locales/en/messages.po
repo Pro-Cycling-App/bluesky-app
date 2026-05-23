@@ -838,7 +838,7 @@ msgstr ""
 msgid "Accept Request"
 msgstr ""
 
-#: src/view/com/composer/select-language/SuggestedLanguage.tsx:470
+#: src/view/com/composer/select-language/SuggestedLanguage.tsx:460
 msgid "Accept this language suggestion"
 msgstr ""
 
@@ -1062,8 +1062,8 @@ msgstr ""
 msgid "Add muted words and tags"
 msgstr ""
 
-#: src/screens/Messages/components/MessagesListInfoPanel.tsx:126
-#: src/screens/Messages/components/MessagesListInfoPanel.tsx:165
+#: src/screens/Messages/components/MessagesListInfoPanel.tsx:129
+#: src/screens/Messages/components/MessagesListInfoPanel.tsx:168
 #: src/screens/ProfileList/AboutSection.tsx:72
 #: src/screens/ProfileList/AboutSection.tsx:90
 msgid "Add people"
@@ -1694,7 +1694,7 @@ msgstr ""
 msgid "Are you sure?"
 msgstr ""
 
-#: src/view/com/composer/select-language/SuggestedLanguage.tsx:359
+#: src/view/com/composer/select-language/SuggestedLanguage.tsx:349
 msgid "Are you writing in <0>{suggestedLanguageName}</0>?"
 msgstr ""
 
@@ -2490,7 +2490,7 @@ msgstr ""
 msgid "click here"
 msgstr ""
 
-#: src/screens/Messages/components/MessagesListInfoPanel.tsx:122
+#: src/screens/Messages/components/MessagesListInfoPanel.tsx:125
 msgid "Click here to add people to this group chat"
 msgstr "Click here to add people to this group chat"
 
@@ -2498,7 +2498,7 @@ msgstr "Click here to add people to this group chat"
 msgid "Click here to contact our support team"
 msgstr ""
 
-#: src/screens/Messages/components/MessagesListInfoPanel.tsx:136
+#: src/screens/Messages/components/MessagesListInfoPanel.tsx:139
 msgid "Click here to create or manage an invite link for this group chat"
 msgstr "Click here to create or manage an invite link for this group chat"
 
@@ -2528,7 +2528,7 @@ msgstr ""
 msgid "Click here to update your email"
 msgstr ""
 
-#: src/screens/Messages/components/MessagesListInfoPanel.tsx:137
+#: src/screens/Messages/components/MessagesListInfoPanel.tsx:140
 msgid "Click here to view the invite link for this group chat"
 msgstr "Click here to view the invite link for this group chat"
 
@@ -3278,7 +3278,7 @@ msgstr ""
 msgid "Debug panel"
 msgstr ""
 
-#: src/view/com/composer/select-language/SuggestedLanguage.tsx:479
+#: src/view/com/composer/select-language/SuggestedLanguage.tsx:469
 msgid "Decline this language suggestion"
 msgstr "Decline this language suggestion"
 
@@ -5960,7 +5960,7 @@ msgstr ""
 #: src/screens/Messages/components/InviteLinkDialog.tsx:290
 #: src/screens/Messages/components/InviteLinkDialog.tsx:296
 #: src/screens/Messages/components/InviteLinkDialog.tsx:471
-#: src/screens/Messages/components/MessagesListInfoPanel.tsx:142
+#: src/screens/Messages/components/MessagesListInfoPanel.tsx:145
 #: src/screens/Messages/ConversationSettings/index.tsx:507
 msgid "Invite link"
 msgstr "Invite link"
@@ -10934,7 +10934,7 @@ msgstr ""
 msgid "The laws in your region require you to verify you're an adult to access certain features. Tap to learn more."
 msgstr ""
 
-#: src/view/com/composer/select-language/SuggestedLanguage.tsx:410
+#: src/view/com/composer/select-language/SuggestedLanguage.tsx:400
 msgid "The post you’re replying to was marked as being written in {suggestedLanguageName} by its author. Would you like to reply in <0>{suggestedLanguageName}</0>?"
 msgstr "The post you’re replying to was marked as being written in {suggestedLanguageName} by its author. Would you like to reply in <0>{suggestedLanguageName}</0>?"
 
